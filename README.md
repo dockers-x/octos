@@ -1,124 +1,175 @@
-# Octos Docker
+# Octos Docker 镜像
 
-这个仓库用于把 [octos-org/octos](https://github.com/octos-org/octos/) 的上游二进制 release 成品打包成 Docker 镜像。镜像不编译 Octos 源码，不安装 Rust/Cargo 工具链，只下载上游 `octos-bundle-*-unknown-linux-gnu.tar.gz` 并启动其中的 `octos` 二进制。
+这个镜像用于自托管 [Octos](https://github.com/octos-org/octos/)。它把上游发布的 Linux 二进制 bundle 打进容器，并补齐浏览器、文档处理、媒体处理和 Node 运行依赖，适合直接用 Docker 或 Docker Compose 跑 `octos serve`。
 
-默认 release 成品下载源使用你提供的 gh-proxy 镜像前缀：
+镜像不从源码编译 Octos，也不安装 Rust/Cargo 工具链。构建阶段只下载上游 `octos-bundle-*-unknown-linux-gnu.tar.gz`，把其中的 `octos` 二进制和 bundled skills 放进镜像。
 
-```text
-https://gh-proxy.org/https://github.com/octos-org/octos/releases/download
-```
+当前跟踪的上游版本见 [latest.txt](latest.txt)。
 
-当前上游版本记录在 [latest.txt](latest.txt)。
-
-## 快速启动
-
-```bash
-cp .env.example .env
-# 编辑 .env，至少设置 OCTOS_AUTH_TOKEN 和一个 LLM Provider API Key。
-# 如需本地打包镜像，compose 会直接下载上游二进制 release 成品。
-docker compose up -d --build
-```
-
-启动后打开：
-
-- 管理后台：`http://localhost:8080/admin/`
-- 用户应用：`http://localhost:8080/app/`
-
-如果设置了 `OCTOS_AUTH_TOKEN`，访问后台 API 或受保护页面时使用该 token。
-
-## docker-compose
-
-[docker-compose.yml](docker-compose.yml) 会启动一个长期运行的 `octos serve` 服务：
-
-- 容器内端口：`8080`
-- 宿主端口：由 `OCTOS_HTTP_PORT` 控制，默认 `8080`
-- 数据卷：`octos-data:/root/.octos`
-- 配置文件：首次启动自动生成到 `/root/.octos/config.json`
-- bundled skills：镜像内置到 `/opt/octos/skills`，首次启动同步到数据卷
-
-常用命令：
-
-```bash
-docker compose logs -f
-docker compose restart
-docker compose down
-docker compose down -v  # 删除数据卷，慎用
-```
-
-## 环境变量
-
-主要变量在 [.env.example](.env.example) 中：
-
-| 变量 | 作用 | 默认值 |
-| --- | --- | --- |
-| `OCTOS_VERSION` | 构建时下载的 Octos release tag | `v1.1.0` |
-| `OCTOS_RELEASE_BASE` | release bundle 下载前缀 | gh-proxy release 前缀 |
-| `OCTOS_IMAGE` | Compose 使用/标记的镜像名 | `ghcr.io/dockers-x/octos:latest` |
-| `OCTOS_HTTP_PORT` | 宿主机暴露端口 | `8080` |
-| `OCTOS_AUTH_TOKEN` | `octos serve --auth-token` | 空 |
-| `OPENAI_API_KEY` 等 | LLM provider key | 空 |
-
-首次启动时，入口脚本会根据已设置的 API key 自动生成最小 `config.json`。如果没有任何 key，会默认写入 OpenAI provider，但你仍需要设置 `OPENAI_API_KEY` 或手动修改数据卷里的配置。
-
-## 手动打包镜像
-
-默认使用 gh-proxy 下载上游二进制 bundle。这里的 `docker build` 只是打包镜像，不会编译 Octos：
-
-```bash
-docker build \
-  --build-arg OCTOS_VERSION=v1.1.0 \
-  --build-arg OCTOS_RELEASE_BASE=https://gh-proxy.org/https://github.com/octos-org/octos/releases/download \
-  -t ghcr.io/dockers-x/octos:v1.1.0 .
-```
-
-如需改回 GitHub 官方地址：
-
-```bash
-docker build \
-  --build-arg OCTOS_RELEASE_BASE=https://github.com/octos-org/octos/releases/download \
-  -t octos:local .
-```
-
-## GitHub Actions
-
-本仓库包含两个 workflow：
-
-- [check-update.yml](.github/workflows/check-update.yml)：每天检查 `octos-org/octos` 最新 release。如果版本变化，更新 `latest.txt` 并提交。
-- [docker-build.yml](.github/workflows/docker-build.yml)：在 `latest.txt`、Dockerfile、入口脚本或 compose 变化时，把上游二进制成品打包并推送多架构镜像。
-
-也可以用 GitHub CLI 手动触发：
-
-```bash
-# 检查上游 release，有新版本时更新 latest.txt
-gh workflow run check-update.yml
-
-# 直接按 latest.txt 打包并推送镜像
-gh workflow run docker-build.yml
-
-# 指定上游 release tag 打包
-gh workflow run docker-build.yml -f version=v1.1.0
-```
-
-镜像推送到：
+## 镜像地址
 
 ```text
-ghcr.io/<github-owner>/octos:latest
-ghcr.io/<github-owner>/octos:<version>
+ghcr.io/dockers-x/octos:latest
+ghcr.io/dockers-x/octos:v1.1.0
 ```
 
-当前矩阵支持：
+支持的平台：
 
 - `linux/amd64`
 - `linux/arm64`
 
+## 快速启动
+
+### Docker Compose
+
+```bash
+cp .env.example .env
+# 编辑 .env，设置 OCTOS_AUTH_TOKEN，并至少填一个 LLM provider API key。
+docker compose pull
+docker compose up -d --no-build
+```
+
+启动后访问：
+
+- 管理后台：`http://localhost:8080/admin/`
+- 用户应用：`http://localhost:8080/app/`
+
+查看日志：
+
+```bash
+docker compose logs -f
+```
+
+### Docker Run
+
+```bash
+docker run -d \
+  --name octos \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v octos-data:/root/.octos \
+  -e OCTOS_AUTH_TOKEN=change-me-to-a-long-random-token \
+  -e OPENAI_API_KEY=sk-... \
+  ghcr.io/dockers-x/octos:latest
+```
+
+## 这个镜像包含什么
+
+- 上游 Octos release bundle 里的 `octos` 二进制。
+- 上游 bundle 自带的 skills，镜像内路径是 `/opt/octos/skills`。
+- Chromium、FFmpeg、LibreOffice、Poppler 等常用运行依赖，用于浏览器自动化、文档转换、媒体处理等场景。
+- Node 22 运行环境，以及 `pptxgenjs`、`react`、`react-dom`、`react-icons`、`sharp` 这些全局 Node 包。
+
+容器默认执行：
+
+```bash
+octos serve --host 0.0.0.0 --port 8080
+```
+
+如果设置了 `OCTOS_AUTH_TOKEN`，入口脚本会自动加上 `--auth-token`。
+
+## 数据目录
+
+容器内的 Octos 数据目录是：
+
+```text
+/root/.octos
+```
+
+Compose 默认把它挂到 `octos-data` volume。这个目录里会保存配置、会话、记忆、日志、用户 skills 等数据。升级或重建容器时，只要保留这个 volume，数据就不会丢。
+
+首次启动时，入口脚本会做几件事：
+
+- 创建 `/root/.octos/config.json`。
+- 创建 `profiles`、`memory`、`sessions`、`skills`、`logs`、`research`、`history` 等目录。
+- 把镜像内置的 skills 从 `/opt/octos/skills` 同步到数据目录，已存在的同名目录不会覆盖。
+- 如果还没有 `SOUL.md` 和 `USER.md`，写入默认文件。
+
+## 配置
+
+主要配置都在 [.env.example](.env.example) 里：
+
+| 变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `OCTOS_IMAGE` | Compose 使用的镜像名 | `ghcr.io/dockers-x/octos:latest` |
+| `OCTOS_HTTP_PORT` | 映射到宿主机的端口 | `8080` |
+| `OCTOS_AUTH_TOKEN` | 传给 `octos serve --auth-token` 的访问 token | 空 |
+| `TZ` | 容器时区 | `Asia/Shanghai` |
+| `OPENAI_API_KEY` | OpenAI provider key | 空 |
+| `ANTHROPIC_API_KEY` | Anthropic provider key | 空 |
+| `GEMINI_API_KEY` | Gemini provider key | 空 |
+| `DEEPSEEK_API_KEY` | DeepSeek provider key | 空 |
+| `MOONSHOT_API_KEY` / `KIMI_API_KEY` | Moonshot/Kimi provider key | 空 |
+| `DASHSCOPE_API_KEY` | DashScope provider key | 空 |
+| `OCTOS_VERSION` | 本地构建时下载的上游 release tag | `v1.1.0` |
+| `OCTOS_RELEASE_BASE` | 本地构建时使用的 release 下载前缀 | GitHub 官方 release 地址 |
+
+首次启动时，如果还没有 `config.json`，入口脚本会根据已设置的 API key 生成最小配置。自动识别顺序是 Anthropic、Gemini、DeepSeek、Moonshot/Kimi、DashScope，最后回退到 OpenAI。如果没有设置任何 key，也会生成 OpenAI 模板配置，之后需要补上 `OPENAI_API_KEY` 或手动修改配置。
+
+`.env.example` 里还保留了 Minimax、NVIDIA、Zhipu 等 provider key 变量，它们会透传给容器。如果你要用这些 provider，或者想指定不同模型，可以直接改 volume 里的 `/root/.octos/config.json`，然后重启容器。
+
+## 常用命令
+
+```bash
+# 启动
+docker compose up -d --no-build
+
+# 查看日志
+docker compose logs -f
+
+# 重启
+docker compose restart
+
+# 停止并删除容器，保留数据卷
+docker compose down
+
+# 停止并删除容器，同时删除数据卷
+docker compose down -v
+```
+
+删除数据卷会清掉 `/root/.octos` 里的配置和运行数据，执行前先确认不再需要这些数据。
+
+## 自己构建镜像
+
+本地构建时默认从 GitHub 官方 release 地址下载上游 bundle：
+
+```bash
+docker compose up -d --build
+```
+
+也可以直接用 `docker build`：
+
+```bash
+docker build \
+  --build-arg OCTOS_VERSION=v1.1.0 \
+  --build-arg OCTOS_RELEASE_BASE=https://github.com/octos-org/octos/releases/download \
+  -t ghcr.io/dockers-x/octos:v1.1.0 .
+```
+
+`OCTOS_VERSION` 对应上游 Octos release tag。当前默认值是 `v1.1.0`。
+
 ## 安全建议
 
-- 不要把未设置 `OCTOS_AUTH_TOKEN` 的管理后台直接暴露到公网。
-- 生产环境建议放在反向代理后面，并配置 HTTPS。
-- API key 建议通过 Compose `.env`、Docker secrets 或 CI secrets 注入，不要写入镜像。
+- 不要把未设置 `OCTOS_AUTH_TOKEN` 的服务直接暴露到公网。
+- 公网部署建议放在反向代理后面，并配置 HTTPS。
+- API key 建议通过 Compose `.env`、Docker secrets 或 CI secrets 注入，不要写进镜像。
 
-## 上游信息
+## 维护说明
 
-- Octos 项目：https://github.com/octos-org/octos/
-- v1.1.0 安装脚本镜像地址：https://gh-proxy.org/https://github.com/octos-org/octos/releases/download/v1.1.0/install.sh
-- 上游 self-hosted 默认入口：`octos serve --host 0.0.0.0 --port 8080`
+这个仓库带有两个 GitHub Actions workflow：
+
+- [check-update.yml](.github/workflows/check-update.yml)：每天检查 `octos-org/octos` 最新 release，版本变化时更新 `latest.txt`。
+- [docker-build.yml](.github/workflows/docker-build.yml)：根据 `latest.txt` 打包并推送多架构镜像。
+
+也可以手动触发：
+
+```bash
+gh workflow run check-update.yml
+gh workflow run docker-build.yml
+gh workflow run docker-build.yml -f version=v1.1.0
+```
+
+## 上游项目
+
+- Octos：https://github.com/octos-org/octos/
+- 上游 release：https://github.com/octos-org/octos/releases

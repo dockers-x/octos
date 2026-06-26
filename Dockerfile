@@ -8,7 +8,7 @@ FROM node:22-bookworm-slim
 
 ARG TARGETARCH
 ARG OCTOS_VERSION=v1.1.0
-ARG OCTOS_RELEASE_BASE=https://gh-proxy.org/https://github.com/octos-org/octos/releases/download
+ARG OCTOS_RELEASE_BASE=https://github.com/octos-org/octos/releases/download
 
 ENV DEBIAN_FRONTEND=noninteractive \
     OCTOS_HOME=/root/.octos \
