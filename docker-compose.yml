@@ -1,0 +1,36 @@
+services:
+  octos:
+    image: ${OCTOS_IMAGE:-ghcr.io/dockers-x/octos:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OCTOS_VERSION: ${OCTOS_VERSION:-v1.1.0}
+        OCTOS_RELEASE_BASE: ${OCTOS_RELEASE_BASE:-https://gh-proxy.org/https://github.com/octos-org/octos/releases/download}
+    container_name: octos
+    restart: unless-stopped
+    ports:
+      - "${OCTOS_HTTP_PORT:-8080}:8080"
+    environment:
+      OCTOS_HOME: /root/.octos
+      OCTOS_CONFIG_DIR: /root/.octos
+      OCTOS_HOST: 0.0.0.0
+      OCTOS_PORT: 8080
+      OCTOS_AUTH_TOKEN: ${OCTOS_AUTH_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      MOONSHOT_API_KEY: ${MOONSHOT_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - octos-data:/root/.octos
+    shm_size: "1gb"
+
+volumes:
+  octos-data:

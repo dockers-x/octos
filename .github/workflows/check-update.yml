@@ -1,0 +1,62 @@
+name: Check Octos Update
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest Octos release
+        id: latest
+        shell: bash
+        run: |
+          VERSION="$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/octos-org/octos/releases/latest \
+            | jq -r '.tag_name')"
+          if ! [[ "${VERSION}" =~ ^v[0-9]+(\.[0-9]+){1,2}([._-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid upstream version: ${VERSION}" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream: ${VERSION}"
+
+      - name: Compare with current version
+        id: compare
+        shell: bash
+        run: |
+          CURRENT="$(cat latest.txt 2>/dev/null | tr -d '[:space:]' || true)"
+          NEW="${{ steps.latest.outputs.version }}"
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+          if [ "${CURRENT}" = "${NEW}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No update: still ${CURRENT}"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Update detected: ${CURRENT} -> ${NEW}"
+          fi
+
+      - name: Update latest.txt and commit
+        if: steps.compare.outputs.changed == 'true'
+        shell: bash
+        run: |
+          echo "${{ steps.latest.outputs.version }}" > latest.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add latest.txt
+          git commit -m "Track new upstream Octos release" \
+            -m "The Docker image build reads latest.txt, so updating this file triggers a rebuild against the newest Octos release bundle." \
+            -m "Constraint: Upstream version is sourced from octos-org/octos releases/latest" \
+            -m "Confidence: high" \
+            -m "Scope-risk: narrow" \
+            -m "Tested: GitHub release API returned ${{ steps.latest.outputs.version }}" \
+            -m "Not-tested: Docker image build for the new release in this workflow"
+          git push

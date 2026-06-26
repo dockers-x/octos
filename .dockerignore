@@ -1,0 +1,8 @@
+.git
+.github
+.octos
+*.log
+README.md
+LICENSE
+docker-build.yml
+check-update.yml
