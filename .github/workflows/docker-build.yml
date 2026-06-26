@@ -1,4 +1,4 @@
-name: Package Binary Release Docker Image
+name: Build Source Docker Image
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Octos release tag to build, for example v1.1.0
+        description: Octos source tag to build, for example v1.1.0
         required: false
         type: string
 
@@ -23,7 +23,7 @@ env:
 
 jobs:
   build:
-    name: Package ${{ matrix.platform }}
+    name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -55,7 +55,7 @@ jobs:
             exit 1
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Packaging prebuilt Octos ${VERSION}"
+          echo "Building Octos ${VERSION} from source"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -67,7 +67,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package and push by digest
+      - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -77,13 +77,12 @@ jobs:
           push: true
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true
           build-args: |
-            TARGETARCH=${{ matrix.arch }}
             OCTOS_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
           labels: |
             org.opencontainers.image.title=octos
-            org.opencontainers.image.description=Octos Agentic OS Docker image packaged from upstream binary release bundle
+            org.opencontainers.image.description=Octos Agentic OS Docker image built from upstream source
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.url=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ steps.version.outputs.version }}

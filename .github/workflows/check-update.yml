@@ -53,7 +53,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add latest.txt
           git commit -m "Track new upstream Octos release" \
-            -m "The Docker image build reads latest.txt, so updating this file triggers a rebuild against the newest Octos release bundle." \
+            -m "The Docker image build reads latest.txt, so updating this file triggers a rebuild from the newest Octos source tag." \
             -m "Constraint: Upstream version is sourced from octos-org/octos releases/latest" \
             -m "Confidence: high" \
             -m "Scope-risk: narrow" \

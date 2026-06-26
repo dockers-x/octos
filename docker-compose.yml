@@ -5,8 +5,12 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        OCTOS_SOURCE_BASE: ${OCTOS_SOURCE_BASE:-https://github.com/octos-org/octos}
+        OCTOS_WEB_SOURCE_BASE: ${OCTOS_WEB_SOURCE_BASE:-https://github.com/octos-org/octos-web}
         OCTOS_VERSION: ${OCTOS_VERSION:-v1.1.0}
-        OCTOS_RELEASE_BASE: ${OCTOS_RELEASE_BASE:-https://github.com/octos-org/octos/releases/download}
+        OCTOS_WEB_REF: ${OCTOS_WEB_REF:-}
+        RUST_TOOLCHAIN: ${RUST_TOOLCHAIN:-1.88.0}
+        OCTOS_RUST_TARGET: ${OCTOS_RUST_TARGET:-}
     container_name: octos
     restart: unless-stopped
     ports:
